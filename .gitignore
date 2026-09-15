@@ -1,0 +1,15 @@
+# CMake build directories
+build/
+cmake-build-*/
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj*
+
+# Compiled output
+*.exe
+*.obj
+*.o
+*.a
+*.lib
