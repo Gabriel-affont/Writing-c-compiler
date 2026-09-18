@@ -3,12 +3,12 @@
 
 #include "lexer.h"
 
-// typedef enum {
-//     AST_INT_LITERAL,
-//     AST_RETURN_STATEMENT,
-//     AST_FUNCTION_DECLARATION,
-//     AST_PROGRAM
-// } ASTNodeType;
+typedef enum {
+    AST_INT_LITERAL,
+    AST_RETURN_STATEMENT,
+    AST_FUNCTION_DECLARATION,
+    AST_PROGRAM
+} ASTNodeType;
 
 typedef enum {
     UNARY_NEGATE,
