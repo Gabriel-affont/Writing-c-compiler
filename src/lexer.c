@@ -51,6 +51,9 @@ TokenList lex_file(const char *filename) {
             case '(': append_token(&list, TOKEN_OPEN_PAREN, "("); i++; continue;
             case ')': append_token(&list, TOKEN_CLOSE_PAREN, ")"); i++; continue;
             case ';': append_token(&list, TOKEN_SEMICOLON, ";"); i++; continue;
+            case '~': append_token(&list, TOKEN_TILDE, "~"); i++; continue;
+            case '-': append_token(&list, TOKEN_MINUS, "-"); i++; continue;
+            case '!': append_token(&list, TOKEN_EXCLAMATION, "!"); i++; continue;
         }
 
         // Identifiers and Keywords: [a-zA-Z_][a-zA-Z0-9_]*

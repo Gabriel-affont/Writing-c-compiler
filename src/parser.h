@@ -3,15 +3,33 @@
 
 #include "lexer.h"
 
+// typedef enum {
+//     AST_INT_LITERAL,
+//     AST_RETURN_STATEMENT,
+//     AST_FUNCTION_DECLARATION,
+//     AST_PROGRAM
+// } ASTNodeType;
+
 typedef enum {
-    AST_INT_LITERAL,
-    AST_RETURN_STATEMENT,
-    AST_FUNCTION_DECLARATION,
-    AST_PROGRAM
-} ASTNodeType;
+    UNARY_NEGATE,
+    UNARY_COMPLEMENT,
+    UNARY_NOT
+} UnaryOp;
+
+typedef enum {
+    EXP_INT_LITERAL,
+    EXP_UNARY
+} ExpType;
 
 typedef struct ASTExp {
-    int value;
+    ExpType type;
+    union {
+        int int_val;
+        struct {
+            UnaryOp op;
+            struct ASTExp *sub_exp;
+        } unary;
+    };
 } ASTExp;
 
 typedef struct ASTStatement {
@@ -25,6 +43,7 @@ typedef struct ASTFunction {
 typedef struct ASTProgram {
     ASTFunction *function;
 } ASTProgram;
-ASTProgram *parse_tokens(TokenList *tokens);
+ASTProgram *parse(TokenList *tokens);
 void free_ast(ASTProgram *program);
+void free_exp(ASTExp *exp);
 #endif

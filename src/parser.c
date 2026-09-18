@@ -9,7 +9,7 @@ typedef struct {
 } Parser;
 
 static Token *peek(Parser *parser) {
-    if (parser->currrent < parser->tokens->count) {
+    if (parser->current < parser->tokens->count) {
         return &parser->tokens->items[parser->current];
     }
     return NULL;
@@ -31,15 +31,44 @@ static Token *expect(Parser *parser, TokenType type, const char *err_msg){
 }
 
 static ASTExp *parse_exp(Parser *parser) {
-    Token *token = expect(parser, TOKEN_INT_LITERAL, "Expected integer Literal");
+    //Token *token = expect(parser, TOKEN_INT_LITERAL, "Expected integer Literal");
+    Token *tok = peek(parser);
+    
+    if (!tok) {
+        fprintf(stderr, "Parse Error: Unexpected end of input\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (tok->type == TOKEN_MINUS || tok->type == TOKEN_TILDE || tok->type == TOKEN_EXCLAMATION) {
+        advance(parser);
+    
+        ASTExp *exp = malloc(sizeof(ASTExp));
+         exp->type= EXP_UNARY;
+
+         if (tok->type == TOKEN_MINUS)  exp->unary.op = UNARY_NEGATE;
+         if (tok->type == TOKEN_TILDE)  exp->unary.op = UNARY_COMPLEMENT;
+         if (tok->type == TOKEN_EXCLAMATION) exp->unary.op = UNARY_NOT;
+
+          exp->unary.sub_exp = parse_exp(parser);
+    return exp;
+    
+
+}
+if (tok->type == TOKEN_INT_LITERAL) {
+    advance(parser);
     ASTExp *exp = malloc(sizeof(ASTExp));
-    exp->value = atoi(tok->lexeme);
+    exp->type = EXP_INT_LITERAL;
+    exp->int_val = atoi(tok->lexeme);
     return exp;
 }
+fprintf(stderr, "Parse Error: Invalid expression starting with '%s'\n", tok->lexeme);
+exit(EXIT_FAILURE);
+}
+
 
 static ASTStatement *parse_statement(Parser *parser) {
     expect(parser,TOKEN_RETURN_KEYWORD, "Expected 'return' keyword");
-    ASTExp *stmt = malloc(sizeof(ASTStatement));
+    ASTStatement *stmt = malloc(sizeof(ASTStatement));
     stmt->exp = parse_exp(parser);
     expect(parser, TOKEN_SEMICOLON, "Expected ';' after return statement");
     return stmt;
@@ -52,6 +81,7 @@ static ASTFunction *parse_function(Parser *parser) {
     expect(parser, TOKEN_OPEN_PAREN, "Expected '(' after function name");
     expect(parser, TOKEN_CLOSE_PAREN, "Expected ')' after '('");
     expect(parser, TOKEN_OPEN_BRACE, "Expected '{' to start function body");
+    expect(parser, TOKEN_CLOSE_BRACE,"Expected '}' to close function body");
     func->statement = parse_statement(parser);
     return func;
 }
@@ -63,12 +93,21 @@ ASTProgram *parse(TokenList *tokens) {
     return program;
 }
 
+void free_exp(ASTExp *exp) {
+    if (!exp) return;
+    if (exp->type == EXP_UNARY) {
+        free_exp(exp->unary.sub_exp);
+    }
+    free(exp);
+    
+}
+
 void free_ast(ASTProgram *program) {
     if (!program) return;
     if (program->function) {
         free(program->function->name);
         if (program->function->statement) {
-            free(program->function->statement->exp);
+            free_exp(program->function->statement->exp);
             free(program->function->statement);
         }
         free(program->function);
