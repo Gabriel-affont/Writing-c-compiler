@@ -46,4 +46,5 @@ typedef struct ASTProgram {
 ASTProgram *parse(TokenList *tokens);
 void free_ast(ASTProgram *program);
 void free_exp(ASTExp *exp);
+void printf_ast(const ASTProgram *program);
 #endif

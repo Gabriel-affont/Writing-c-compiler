@@ -18,6 +18,7 @@ int main(int argc, char **argv)
     //parsing the tokens into an AST
     ASTProgram *ast = parse(&tokens);
     //generating assembly code from the AST
+    print_ast(ast);
     FILE *out = fopen(output_file, "w");
     if (!out) {
         perror("Failed to open output file");

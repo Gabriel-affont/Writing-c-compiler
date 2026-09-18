@@ -3,6 +3,48 @@
 #include <string.h>
 #include "parser.h"
 
+static void printf_indent(int level) {
+    for (int i = 0; i < level; i++) {
+        printf("  ");
+    }
+}
+static void printf_exp_node(const ASTExp *exp, int indent) {
+    if (!exp) return;
+    print_indent(indent);
+    if (exp->type == EXP_INT_LITERAL) {
+        printf("IntLiteral(%d)\n", exp->int_val);
+        return;
+    }
+    if (exp->type === EXP_UNARY) {
+        const char *op_str = "";
+        switch (exp->unary.op) {
+            case UNARY_NEGATE;    op_str = "NEGATE (-);"; break;
+            case UNARY_COMPLEMENT; op_str = "COMPLEMENT (!)"; break;
+            case UNARY_NOT;        op_str = "LOGICAL_NOT (!)"; break;
+        }
+        printf("UnaryOp(%s)\n", op_str);
+        print_exp_node(exp->unary.sub_exp, indent + 1);
+    }
+}
+static void print_statement_node(const ASTStatement *stmt, int indent) {
+    print_indent(indent);
+    printf("ReturnStatement:\n");
+    print_exp_node(stmt->exp, indent + 1);
+}
+
+static void print_function_node(const ASTFunction *func, int indent) {
+    print_indent(indent);
+    printf("FunctionDeclaration(name: '%s'):\n", func->name);
+    print_statement_node(func->statement, indent + 1);
+}
+
+void print_ast(const ASTProgram *program) {
+    if (!program) {
+        printf("AST is NULL\n");
+        print_function_node(program->function, 1);
+    }
+}
+
 typedef struct {
     TokenList *tokens;
     size_t current;
