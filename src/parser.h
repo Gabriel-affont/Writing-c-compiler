@@ -17,9 +17,20 @@ typedef enum {
 } UnaryOp;
 
 typedef enum {
+    BIN_ADD,
+    BIN_SUB,
+    BIN_MUL,
+    BIN_DIV
+} BinaryOp;
+
+typedef enum {
     EXP_INT_LITERAL,
-    EXP_UNARY
-} ExpType;
+    EXP_UNARY,
+    EXP_BINARY
+
+} EXPType;
+
+
 
 typedef struct ASTExp {
     ExpType type;
@@ -29,6 +40,12 @@ typedef struct ASTExp {
             UnaryOp op;
             struct ASTExp *sub_exp;
         } unary;
+        struct {
+            BinaryOp op;
+            struct ASTExp *left;
+            struct ASTExp *right;
+        } binary;
+        
     };
 } ASTExp;
 
