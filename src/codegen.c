@@ -1,5 +1,8 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "codegen.h"
+
+static int label_counter = 0;
 
 static void emit_exp(const ASTExp *exp, FILE *out) {
     if (exp->type == EXP_INT_LITERAL) {
@@ -27,46 +30,87 @@ static void emit_exp(const ASTExp *exp, FILE *out) {
     }
 
     if (exp->type == EXP_BINARY) {
-        // 1. Evaluate left child (e1) -> result lands in %eax
+        // --- Short-Circuit Evaluation for Logical OR (||) ---
+        if (exp->binary.op == BINARY_LOGICAL_OR) {
+            int id = label_counter++;
+            emit_exp(exp->binary.left, out);
+            fprintf(out, "    cmpl    $0, %%eax\n");
+            fprintf(out, "    je      _clause2_%d\n", id);
+            fprintf(out, "    movl    $1, %%eax\n");
+            fprintf(out, "    jmp     _end_%d\n", id);
+            fprintf(out, "_clause2_%d:\n", id);
+            emit_exp(exp->binary.right, out);
+            fprintf(out, "    cmpl    $0, %%eax\n");
+            fprintf(out, "    movl    $0, %%eax\n");
+            fprintf(out, "    setne   %%al\n");
+            fprintf(out, "_end_%d:\n", id);
+            return;
+        }
+
+        // --- Short-Circuit Evaluation for Logical AND (&&) ---
+        if (exp->binary.op == BINARY_LOGICAL_AND) {
+            int id = label_counter++;
+            emit_exp(exp->binary.left, out);
+            fprintf(out, "    cmpl    $0, %%eax\n");
+            fprintf(out, "    jne     _clause2_%d\n", id);
+            fprintf(out, "    jmp     _end_%d\n", id);
+            fprintf(out, "_clause2_%d:\n", id);
+            emit_exp(exp->binary.right, out);
+            fprintf(out, "    cmpl    $0, %%eax\n");
+            fprintf(out, "    movl    $0, %%eax\n");
+            fprintf(out, "    setne   %%al\n");
+            fprintf(out, "_end_%d:\n", id);
+            return;
+        }
+
+        // --- Standard Binary Operations (Arithmetic & Relational) ---
         emit_exp(exp->binary.left, out);
-
-        // 2. Save e1 on the stack
         fprintf(out, "    pushl   %%eax\n");
-
-        // 3. Evaluate right child (e2) -> result lands in %eax
         emit_exp(exp->binary.right, out);
-
-        // 4. Pop saved e1 into %ecx
         fprintf(out, "    popl    %%ecx\n");
 
-        // 5. Perform the binary operation
         switch (exp->binary.op) {
             case BINARY_ADD:
-                // %eax = %eax (e2) + %ecx (e1)
                 fprintf(out, "    addl    %%ecx, %%eax\n");
                 break;
 
             case BINARY_SUBTRACT:
-                // %ecx holds e1, %eax holds e2 -> %ecx = e1 - e2
                 fprintf(out, "    subl    %%eax, %%ecx\n");
                 fprintf(out, "    movl    %%ecx, %%eax\n");
                 break;
 
             case BINARY_MULTIPLY:
-                // %eax = %eax (e2) * %ecx (e1)
                 fprintf(out, "    imul    %%ecx, %%eax\n");
                 break;
 
             case BINARY_DIVIDE:
-                // %eax holds e2 (divisor), %ecx holds e1 (dividend)
-                    fprintf(out, "    pushl   %%eax\n");        // Save divisor (e2) on stack
-                    fprintf(out, "    movl    %%ecx, %%eax\n"); // Move dividend (e1) into %eax
-                    fprintf(out, "    cdq\n");                  // Sign-extend %eax into %edx:%eax
-                    fprintf(out, "    popl    %%ecx\n");        // Restore divisor into %ecx
-                    fprintf(out, "    idivl   %%ecx\n");         // divide %edx:%eax by %ecx
+                fprintf(out, "    pushl   %%eax\n");        // Save divisor (e2) on stack
+                fprintf(out, "    movl    %%ecx, %%eax\n"); // Move dividend (e1) into %eax
+                fprintf(out, "    cdq\n");                  // Sign-extend %eax into %edx:%eax
+                fprintf(out, "    popl    %%ecx\n");        // Restore divisor into %ecx
+                fprintf(out, "    idivl   %%ecx\n");         // Divide %edx:%eax by %ecx
+                break;
+
+            // --- Relational Operators ---
+            case BINARY_EQUAL:
+            case BINARY_NOT_EQUAL:
+            case BINARY_LESS_THAN:
+            case BINARY_LESS_EQUAL:
+            case BINARY_GREATER_THAN:
+            case BINARY_GREATER_EQUAL:
+                fprintf(out, "    cmpl    %%eax, %%ecx\n"); // Compare e1 (ecx) to e2 (eax)
+                fprintf(out, "    movl    $0, %%eax\n");
+                if (exp->binary.op == BINARY_EQUAL)         fprintf(out, "    sete    %%al\n");
+                if (exp->binary.op == BINARY_NOT_EQUAL)     fprintf(out, "    setne   %%al\n");
+                if (exp->binary.op == BINARY_LESS_THAN)     fprintf(out, "    setl    %%al\n");
+                if (exp->binary.op == BINARY_LESS_EQUAL)    fprintf(out, "    setle   %%al\n");
+                if (exp->binary.op == BINARY_GREATER_THAN)  fprintf(out, "    setg    %%al\n");
+                if (exp->binary.op == BINARY_GREATER_EQUAL) fprintf(out, "    setge   %%al\n");
+                break;
+
+            default:
                 break;
         }
-        return;
     }
 }
 

@@ -33,10 +33,18 @@ static void printf_exp_node(const ASTExp *exp, int indent) {
     if (exp->type == EXP_BINARY) {
         const char *op_str = "";
         switch (exp->binary.op) {
-            case BINARY_ADD:      op_str = "ADD (+)"; break;
-            case BINARY_SUBTRACT: op_str = "SUBTRACT (-)"; break;
-            case BINARY_MULTIPLY: op_str = "MULTIPLY (*)"; break;
-            case BINARY_DIVIDE:   op_str = "DIVIDE (/)"; break;
+            case BINARY_ADD:           op_str = "ADD (+)"; break;
+            case BINARY_SUBTRACT:      op_str = "SUBTRACT (-)"; break;
+            case BINARY_MULTIPLY:      op_str = "MULTIPLY (*)"; break;
+            case BINARY_DIVIDE:        op_str = "DIVIDE (/)"; break;
+            case BINARY_EQUAL:         op_str = "EQUAL (==)"; break;
+            case BINARY_NOT_EQUAL:     op_str = "NOT_EQUAL (!=)"; break;
+            case BINARY_LESS_THAN:     op_str = "LESS_THAN (<)"; break;
+            case BINARY_LESS_EQUAL:    op_str = "LESS_EQUAL (<=)"; break;
+            case BINARY_GREATER_THAN:  op_str = "GREATER_THAN (>)"; break;
+            case BINARY_GREATER_EQUAL: op_str = "GREATER_EQUAL (>=)"; break;
+            case BINARY_LOGICAL_AND:   op_str = "LOGICAL_AND (&&)"; break;
+            case BINARY_LOGICAL_OR:    op_str = "LOGICAL_OR (||)"; break;
         }
         printf("BinaryOp(%s)\n", op_str);
         printf_exp_node(exp->binary.left, indent + 1);
@@ -92,8 +100,12 @@ static Token *expect(Parser *parser, TokenType type, const char *err_msg) {
     return token;
 }
 
-/* Forward declarations for recursive rules */
+/* Forward Declarations */
 static ASTExp *parse_exp(Parser *parser);
+static ASTExp *parse_logical_and_exp(Parser *parser);
+static ASTExp *parse_equality_exp(Parser *parser);
+static ASTExp *parse_relational_exp(Parser *parser);
+static ASTExp *parse_additive_exp(Parser *parser);
 static ASTExp *parse_term(Parser *parser);
 static ASTExp *parse_factor(Parser *parser);
 
@@ -105,7 +117,6 @@ static ASTExp *parse_factor(Parser *parser) {
         exit(EXIT_FAILURE);
     }
 
-    // Handle parentheses
     if (tok->type == TOKEN_OPEN_PAREN) {
         advance(parser);
         ASTExp *exp = parse_exp(parser);
@@ -113,21 +124,19 @@ static ASTExp *parse_factor(Parser *parser) {
         return exp;
     }
 
-    // Handle Unary operators
     if (tok->type == TOKEN_MINUS || tok->type == TOKEN_TILDE || tok->type == TOKEN_EXCLAMATION) {
         advance(parser);
         ASTExp *exp = malloc(sizeof(ASTExp));
         exp->type = EXP_UNARY;
 
-        if (tok->type == TOKEN_MINUS)        exp->unary.op = UNARY_NEGATE;
-        if (tok->type == TOKEN_TILDE)        exp->unary.op = UNARY_COMPLEMENT;
-        if (tok->type == TOKEN_EXCLAMATION)  exp->unary.op = UNARY_NOT;
+        if (tok->type == TOKEN_MINUS)       exp->unary.op = UNARY_NEGATE;
+        if (tok->type == TOKEN_TILDE)       exp->unary.op = UNARY_COMPLEMENT;
+        if (tok->type == TOKEN_EXCLAMATION) exp->unary.op = UNARY_NOT;
 
         exp->unary.sub_exp = parse_factor(parser);
         return exp;
     }
 
-    // Handle Integer Literal
     if (tok->type == TOKEN_INT_LITERAL) {
         advance(parser);
         ASTExp *exp = malloc(sizeof(ASTExp));
@@ -156,12 +165,11 @@ static ASTExp *parse_term(Parser *parser) {
         left = binary_exp;
         tok = peek(parser);
     }
-
     return left;
 }
 
-/* <exp> ::= <term> { ("+" | "-") <term> } */
-static ASTExp *parse_exp(Parser *parser) {
+/* <additive-exp> ::= <term> { ("+" | "-") <term> } */
+static ASTExp *parse_additive_exp(Parser *parser) {
     ASTExp *left = parse_term(parser);
     Token *tok = peek(parser);
 
@@ -176,7 +184,87 @@ static ASTExp *parse_exp(Parser *parser) {
         left = binary_exp;
         tok = peek(parser);
     }
+    return left;
+}
 
+/* <relational-exp> ::= <additive-exp> { ("<" | ">" | "<=" | ">=") <additive-exp> } */
+static ASTExp *parse_relational_exp(Parser *parser) {
+    ASTExp *left = parse_additive_exp(parser);
+    Token *tok = peek(parser);
+
+    while (tok && (tok->type == TOKEN_LESS_THAN || tok->type == TOKEN_LESS_EQUAL ||
+                   tok->type == TOKEN_GREATER_THAN || tok->type == TOKEN_GREATER_EQUAL)) {
+        advance(parser);
+        ASTExp *binary_exp = malloc(sizeof(ASTExp));
+        binary_exp->type = EXP_BINARY;
+        binary_exp->binary.left = left;
+
+        if (tok->type == TOKEN_LESS_THAN)     binary_exp->binary.op = BINARY_LESS_THAN;
+        if (tok->type == TOKEN_LESS_EQUAL)    binary_exp->binary.op = BINARY_LESS_EQUAL;
+        if (tok->type == TOKEN_GREATER_THAN)  binary_exp->binary.op = BINARY_GREATER_THAN;
+        if (tok->type == TOKEN_GREATER_EQUAL) binary_exp->binary.op = BINARY_GREATER_EQUAL;
+
+        binary_exp->binary.right = parse_additive_exp(parser);
+        left = binary_exp;
+        tok = peek(parser);
+    }
+    return left;
+}
+
+/* <equality-exp> ::= <relational-exp> { ("==" | "!=") <relational-exp> } */
+static ASTExp *parse_equality_exp(Parser *parser) {
+    ASTExp *left = parse_relational_exp(parser);
+    Token *tok = peek(parser);
+
+    while (tok && (tok->type == TOKEN_EQUAL || tok->type == TOKEN_NOT_EQUAL)) {
+        advance(parser);
+        ASTExp *binary_exp = malloc(sizeof(ASTExp));
+        binary_exp->type = EXP_BINARY;
+        binary_exp->binary.left = left;
+        binary_exp->binary.op = (tok->type == TOKEN_EQUAL) ? BINARY_EQUAL : BINARY_NOT_EQUAL;
+        binary_exp->binary.right = parse_relational_exp(parser);
+
+        left = binary_exp;
+        tok = peek(parser);
+    }
+    return left;
+}
+
+/* <logical-and-exp> ::= <equality-exp> { "&&" <equality-exp> } */
+static ASTExp *parse_logical_and_exp(Parser *parser) {
+    ASTExp *left = parse_equality_exp(parser);
+    Token *tok = peek(parser);
+
+    while (tok && tok->type == TOKEN_LOGICAL_AND) {
+        advance(parser);
+        ASTExp *binary_exp = malloc(sizeof(ASTExp));
+        binary_exp->type = EXP_BINARY;
+        binary_exp->binary.left = left;
+        binary_exp->binary.op = BINARY_LOGICAL_AND;
+        binary_exp->binary.right = parse_equality_exp(parser);
+
+        left = binary_exp;
+        tok = peek(parser);
+    }
+    return left;
+}
+
+/* <exp> ::= <logical-and-exp> { "||" <logical-and-exp> } */
+static ASTExp *parse_exp(Parser *parser) {
+    ASTExp *left = parse_logical_and_exp(parser);
+    Token *tok = peek(parser);
+
+    while (tok && tok->type == TOKEN_LOGICAL_OR) {
+        advance(parser);
+        ASTExp *binary_exp = malloc(sizeof(ASTExp));
+        binary_exp->type = EXP_BINARY;
+        binary_exp->binary.left = left;
+        binary_exp->binary.op = BINARY_LOGICAL_OR;
+        binary_exp->binary.right = parse_logical_and_exp(parser);
+
+        left = binary_exp;
+        tok = peek(parser);
+    }
     return left;
 }
 
