@@ -8,32 +8,51 @@ static void printf_indent(int level) {
         printf("  ");
     }
 }
+
 static void printf_exp_node(const ASTExp *exp, int indent) {
     if (!exp) return;
-    print_indent(indent);
+    printf_indent(indent);
+    
     if (exp->type == EXP_INT_LITERAL) {
         printf("IntLiteral(%d)\n", exp->int_val);
         return;
     }
-    if (exp->type === EXP_UNARY) {
+    
+    if (exp->type == EXP_UNARY) {
         const char *op_str = "";
         switch (exp->unary.op) {
-            case UNARY_NEGATE;    op_str = "NEGATE (-);"; break;
-            case UNARY_COMPLEMENT; op_str = "COMPLEMENT (!)"; break;
-            case UNARY_NOT;        op_str = "LOGICAL_NOT (!)"; break;
+            case UNARY_NEGATE:     op_str = "NEGATE (-)"; break;
+            case UNARY_COMPLEMENT: op_str = "COMPLEMENT (~)"; break;
+            case UNARY_NOT:        op_str = "LOGICAL_NOT (!)"; break;
         }
         printf("UnaryOp(%s)\n", op_str);
-        print_exp_node(exp->unary.sub_exp, indent + 1);
+        printf_exp_node(exp->unary.sub_exp, indent + 1);
+        return;
+    }
+
+    if (exp->type == EXP_BINARY) {
+        const char *op_str = "";
+        switch (exp->binary.op) {
+            case BINARY_ADD:      op_str = "ADD (+)"; break;
+            case BINARY_SUBTRACT: op_str = "SUBTRACT (-)"; break;
+            case BINARY_MULTIPLY: op_str = "MULTIPLY (*)"; break;
+            case BINARY_DIVIDE:   op_str = "DIVIDE (/)"; break;
+        }
+        printf("BinaryOp(%s)\n", op_str);
+        printf_exp_node(exp->binary.left, indent + 1);
+        printf_exp_node(exp->binary.right, indent + 1);
+        return;
     }
 }
+
 static void print_statement_node(const ASTStatement *stmt, int indent) {
-    print_indent(indent);
+    printf_indent(indent);
     printf("ReturnStatement:\n");
-    print_exp_node(stmt->exp, indent + 1);
+    printf_exp_node(stmt->exp, indent + 1);
 }
 
 static void print_function_node(const ASTFunction *func, int indent) {
-    print_indent(indent);
+    printf_indent(indent);
     printf("FunctionDeclaration(name: '%s'):\n", func->name);
     print_statement_node(func->statement, indent + 1);
 }
@@ -41,8 +60,9 @@ static void print_function_node(const ASTFunction *func, int indent) {
 void print_ast(const ASTProgram *program) {
     if (!program) {
         printf("AST is NULL\n");
-        print_function_node(program->function, 1);
+        return;
     }
+    print_function_node(program->function, 0);
 }
 
 typedef struct {
@@ -63,7 +83,7 @@ static Token *advance(Parser *parser) {
     return token;
 }
 
-static Token *expect(Parser *parser, TokenType type, const char *err_msg){
+static Token *expect(Parser *parser, TokenType type, const char *err_msg) {
     Token *token = advance(parser);
     if (!token || token->type != type) {
         fprintf(stderr, "Parse Error: %s\n", err_msg);
@@ -72,64 +92,119 @@ static Token *expect(Parser *parser, TokenType type, const char *err_msg){
     return token;
 }
 
-static ASTExp *parse_exp(Parser *parser) {
-    //Token *token = expect(parser, TOKEN_INT_LITERAL, "Expected integer Literal");
+/* Forward declarations for recursive rules */
+static ASTExp *parse_exp(Parser *parser);
+static ASTExp *parse_term(Parser *parser);
+static ASTExp *parse_factor(Parser *parser);
+
+/* <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int> */
+static ASTExp *parse_factor(Parser *parser) {
     Token *tok = peek(parser);
-    
     if (!tok) {
-        fprintf(stderr, "Parse Error: Unexpected end of input\n");
+        fprintf(stderr, "Parse Error: Unexpected end of input in factor\n");
         exit(EXIT_FAILURE);
     }
 
+    // Handle parentheses
+    if (tok->type == TOKEN_OPEN_PAREN) {
+        advance(parser);
+        ASTExp *exp = parse_exp(parser);
+        expect(parser, TOKEN_CLOSE_PAREN, "Expected ')' after expression");
+        return exp;
+    }
+
+    // Handle Unary operators
     if (tok->type == TOKEN_MINUS || tok->type == TOKEN_TILDE || tok->type == TOKEN_EXCLAMATION) {
         advance(parser);
-    
         ASTExp *exp = malloc(sizeof(ASTExp));
-         exp->type= EXP_UNARY;
+        exp->type = EXP_UNARY;
 
-         if (tok->type == TOKEN_MINUS)  exp->unary.op = UNARY_NEGATE;
-         if (tok->type == TOKEN_TILDE)  exp->unary.op = UNARY_COMPLEMENT;
-         if (tok->type == TOKEN_EXCLAMATION) exp->unary.op = UNARY_NOT;
+        if (tok->type == TOKEN_MINUS)        exp->unary.op = UNARY_NEGATE;
+        if (tok->type == TOKEN_TILDE)        exp->unary.op = UNARY_COMPLEMENT;
+        if (tok->type == TOKEN_EXCLAMATION)  exp->unary.op = UNARY_NOT;
 
-          exp->unary.sub_exp = parse_exp(parser);
-    return exp;
-    
+        exp->unary.sub_exp = parse_factor(parser);
+        return exp;
+    }
 
+    // Handle Integer Literal
+    if (tok->type == TOKEN_INT_LITERAL) {
+        advance(parser);
+        ASTExp *exp = malloc(sizeof(ASTExp));
+        exp->type = EXP_INT_LITERAL;
+        exp->int_val = atoi(tok->lexeme);
+        return exp;
+    }
+
+    fprintf(stderr, "Parse Error: Invalid factor starting with '%s'\n", tok->lexeme);
+    exit(EXIT_FAILURE);
 }
-if (tok->type == TOKEN_INT_LITERAL) {
-    advance(parser);
-    ASTExp *exp = malloc(sizeof(ASTExp));
-    exp->type = EXP_INT_LITERAL;
-    exp->int_val = atoi(tok->lexeme);
-    return exp;
-}
-fprintf(stderr, "Parse Error: Invalid expression starting with '%s'\n", tok->lexeme);
-exit(EXIT_FAILURE);
+
+/* <term> ::= <factor> { ("*" | "/") <factor> } */
+static ASTExp *parse_term(Parser *parser) {
+    ASTExp *left = parse_factor(parser);
+    Token *tok = peek(parser);
+
+    while (tok && (tok->type == TOKEN_ASTERISK || tok->type == TOKEN_SLASH)) {
+        advance(parser);
+        ASTExp *binary_exp = malloc(sizeof(ASTExp));
+        binary_exp->type = EXP_BINARY;
+        binary_exp->binary.left = left;
+        binary_exp->binary.op = (tok->type == TOKEN_ASTERISK) ? BINARY_MULTIPLY : BINARY_DIVIDE;
+        binary_exp->binary.right = parse_factor(parser);
+
+        left = binary_exp;
+        tok = peek(parser);
+    }
+
+    return left;
 }
 
+/* <exp> ::= <term> { ("+" | "-") <term> } */
+static ASTExp *parse_exp(Parser *parser) {
+    ASTExp *left = parse_term(parser);
+    Token *tok = peek(parser);
+
+    while (tok && (tok->type == TOKEN_PLUS || tok->type == TOKEN_MINUS)) {
+        advance(parser);
+        ASTExp *binary_exp = malloc(sizeof(ASTExp));
+        binary_exp->type = EXP_BINARY;
+        binary_exp->binary.left = left;
+        binary_exp->binary.op = (tok->type == TOKEN_PLUS) ? BINARY_ADD : BINARY_SUBTRACT;
+        binary_exp->binary.right = parse_term(parser);
+
+        left = binary_exp;
+        tok = peek(parser);
+    }
+
+    return left;
+}
 
 static ASTStatement *parse_statement(Parser *parser) {
-    expect(parser,TOKEN_RETURN_KEYWORD, "Expected 'return' keyword");
+    expect(parser, TOKEN_RETURN_KEYWORD, "Expected 'return' keyword");
     ASTStatement *stmt = malloc(sizeof(ASTStatement));
     stmt->exp = parse_exp(parser);
     expect(parser, TOKEN_SEMICOLON, "Expected ';' after return statement");
     return stmt;
 }
+
 static ASTFunction *parse_function(Parser *parser) {
     expect(parser, TOKEN_INT_KEYWORD, "Expected 'int' return type");
-    Token *id =expect(parser, TOKEN_IDENTIFIER, "Expected function name");
+    Token *id = expect(parser, TOKEN_IDENTIFIER, "Expected function name");
     ASTFunction *func = malloc(sizeof(ASTFunction));
     func->name = strdup(id->lexeme);
+
     expect(parser, TOKEN_OPEN_PAREN, "Expected '(' after function name");
     expect(parser, TOKEN_CLOSE_PAREN, "Expected ')' after '('");
     expect(parser, TOKEN_OPEN_BRACE, "Expected '{' to start function body");
-    expect(parser, TOKEN_CLOSE_BRACE,"Expected '}' to close function body");
     func->statement = parse_statement(parser);
+    expect(parser, TOKEN_CLOSE_BRACE, "Expected '}' to close function body");
+
     return func;
 }
 
 ASTProgram *parse(TokenList *tokens) {
-    Parser parser = {.tokens = tokens, .current = 0};//possible error
+    Parser parser = {.tokens = tokens, .current = 0};
     ASTProgram *program = malloc(sizeof(ASTProgram));
     program->function = parse_function(&parser);
     return program;
@@ -139,9 +214,11 @@ void free_exp(ASTExp *exp) {
     if (!exp) return;
     if (exp->type == EXP_UNARY) {
         free_exp(exp->unary.sub_exp);
+    } else if (exp->type == EXP_BINARY) {
+        free_exp(exp->binary.left);
+        free_exp(exp->binary.right);
     }
     free(exp);
-    
 }
 
 void free_ast(ASTProgram *program) {
