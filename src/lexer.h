@@ -16,12 +16,21 @@ typedef enum {
     TOKEN_MINUS,
     TOKEN_EXCLAMATION,
     TOKEN_PLUS,
-    TOKEN_MINUS,
-    TOKEN_ASTERIX,
+    TOKEN_ASTERISK,
     TOKEN_SLASH,
+    
+    
+    TOKEN_LOGICAL_AND,     // &&
+    TOKEN_LOGICAL_OR,      // ||
+    TOKEN_EQUAL,           // ==
+    TOKEN_NOT_EQUAL,       // !=
+    TOKEN_LESS_THAN,       // <
+    TOKEN_LESS_EQUAL,      // <=
+    TOKEN_GREATER_THAN,    // >
+    TOKEN_GREATER_EQUAL,   // >=
+
     TOKEN_EOF,
     TOKEN_ERROR
-
 } TokenType;
 
 typedef struct {

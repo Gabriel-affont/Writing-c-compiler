@@ -44,6 +44,32 @@ TokenList lex_file(const char *filename) {
             continue;
         }
 
+        // 2-character and 1-character operators
+        if (src[i] == '&' && src[i + 1] == '&') {
+            append_token(&list, TOKEN_LOGICAL_AND, "&&");
+            i += 2; continue;
+        }
+        if (src[i] == '|' && src[i + 1] == '|') {
+            append_token(&list, TOKEN_LOGICAL_OR, "||");
+            i += 2; continue;
+        }
+        if (src[i] == '=' && src[i + 1] == '=') {
+            append_token(&list, TOKEN_EQUAL, "==");
+            i += 2; continue;
+        }
+        if (src[i] == '!' && src[i + 1] == '=') {
+            append_token(&list, TOKEN_NOT_EQUAL, "!=");
+            i += 2; continue;
+        }
+        if (src[i] == '<' && src[i + 1] == '=') {
+            append_token(&list, TOKEN_LESS_EQUAL, "<=");
+            i += 2; continue;
+        }
+        if (src[i] == '>' && src[i + 1] == '=') {
+            append_token(&list, TOKEN_GREATER_EQUAL, ">=");
+            i += 2; continue;
+        }
+
         // Single-character tokens
         switch (src[i]) {
             case '{': append_token(&list, TOKEN_OPEN_BRACE, "{"); i++; continue;
@@ -55,9 +81,10 @@ TokenList lex_file(const char *filename) {
             case '-': append_token(&list, TOKEN_MINUS, "-"); i++; continue;
             case '!': append_token(&list, TOKEN_EXCLAMATION, "!"); i++; continue;
             case '+': append_token(&list, TOKEN_PLUS, "+"); i++; continue;
-            case '-': append_token(&list, TOKEN_MINUS, "-"); i++; continue;
             case '*': append_token(&list, TOKEN_ASTERISK, "*"); i++; continue;
             case '/': append_token(&list, TOKEN_SLASH, "/"); i++; continue;
+            case '<': append_token(&list, TOKEN_LESS_THAN, "<"); i++; continue;
+            case '>': append_token(&list, TOKEN_GREATER_THAN, ">"); i++; continue;
         }
 
         // Identifiers and Keywords: [a-zA-Z_][a-zA-Z0-9_]*
