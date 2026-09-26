@@ -14,7 +14,6 @@ typedef enum {
     BINARY_SUBTRACT,
     BINARY_MULTIPLY,
     BINARY_DIVIDE,
-    
     BINARY_EQUAL,
     BINARY_NOT_EQUAL,
     BINARY_LESS_THAN,
@@ -27,6 +26,8 @@ typedef enum {
 
 typedef enum {
     EXP_INT_LITERAL,
+    EXP_VARIABLE,
+    EXP_ASSIGN,
     EXP_UNARY,
     EXP_BINARY
 } ExpType;
@@ -37,6 +38,11 @@ struct ASTExp {
     ExpType type;
     union {
         int int_val;
+        char *var_name;
+        struct {
+            char *name;
+            ASTExp *exp;
+        } assign;
         struct {
             UnaryOp op;
             ASTExp *sub_exp;
@@ -49,16 +55,30 @@ struct ASTExp {
     };
 };
 
-typedef struct ASTStatement {
-    ASTExp *exp;
+typedef enum {
+    STATEMENT_RETURN,
+    STATEMENT_DECLARE,
+    STATEMENT_EXP
+} StatementType;
+
+typedef struct {
+    StatementType type;
+    union {
+        ASTExp *exp; // For STATEMENT_RETURN and STATEMENT_EXP
+        struct {
+            char *name;
+            ASTExp *init_exp; // Can be NULL if uninitialized
+        } declare;
+    };
 } ASTStatement;
 
-typedef struct ASTFunction {
+typedef struct {
     char *name;
-    ASTStatement *statement;
+    ASTStatement **statements;
+    size_t statement_count;
 } ASTFunction;
 
-typedef struct ASTProgram {
+typedef struct {
     ASTFunction *function;
 } ASTProgram;
 
