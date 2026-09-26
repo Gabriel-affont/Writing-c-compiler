@@ -44,31 +44,13 @@ TokenList lex_file(const char *filename) {
             continue;
         }
 
-        // 2-character and 1-character operators
-        if (src[i] == '&' && src[i + 1] == '&') {
-            append_token(&list, TOKEN_LOGICAL_AND, "&&");
-            i += 2; continue;
-        }
-        if (src[i] == '|' && src[i + 1] == '|') {
-            append_token(&list, TOKEN_LOGICAL_OR, "||");
-            i += 2; continue;
-        }
-        if (src[i] == '=' && src[i + 1] == '=') {
-            append_token(&list, TOKEN_EQUAL, "==");
-            i += 2; continue;
-        }
-        if (src[i] == '!' && src[i + 1] == '=') {
-            append_token(&list, TOKEN_NOT_EQUAL, "!=");
-            i += 2; continue;
-        }
-        if (src[i] == '<' && src[i + 1] == '=') {
-            append_token(&list, TOKEN_LESS_EQUAL, "<=");
-            i += 2; continue;
-        }
-        if (src[i] == '>' && src[i + 1] == '=') {
-            append_token(&list, TOKEN_GREATER_EQUAL, ">=");
-            i += 2; continue;
-        }
+        // 2-character operators
+        if (src[i] == '&' && src[i + 1] == '&') { append_token(&list, TOKEN_LOGICAL_AND, "&&"); i += 2; continue; }
+        if (src[i] == '|' && src[i + 1] == '|') { append_token(&list, TOKEN_LOGICAL_OR, "||"); i += 2; continue; }
+        if (src[i] == '=' && src[i + 1] == '=') { append_token(&list, TOKEN_EQUAL, "=="); i += 2; continue; }
+        if (src[i] == '!' && src[i + 1] == '=') { append_token(&list, TOKEN_NOT_EQUAL, "!="); i += 2; continue; }
+        if (src[i] == '<' && src[i + 1] == '=') { append_token(&list, TOKEN_LESS_EQUAL, "<="); i += 2; continue; }
+        if (src[i] == '>' && src[i + 1] == '=') { append_token(&list, TOKEN_GREATER_EQUAL, ">="); i += 2; continue; }
 
         // Single-character tokens
         switch (src[i]) {
@@ -85,9 +67,10 @@ TokenList lex_file(const char *filename) {
             case '/': append_token(&list, TOKEN_SLASH, "/"); i++; continue;
             case '<': append_token(&list, TOKEN_LESS_THAN, "<"); i++; continue;
             case '>': append_token(&list, TOKEN_GREATER_THAN, ">"); i++; continue;
+            case '=': append_token(&list, TOKEN_ASSIGN, "="); i++; continue; // Added single '='
         }
 
-        // Identifiers and Keywords: [a-zA-Z_][a-zA-Z0-9_]*
+        // Identifiers and Keywords
         if (isalpha(src[i]) || src[i] == '_') {
             size_t start = i;
             while (isalnum(src[i]) || src[i] == '_') {
@@ -109,7 +92,7 @@ TokenList lex_file(const char *filename) {
             continue;
         }
 
-        // Integer Literals: [0-9]+
+        // Integer Literals
         if (isdigit(src[i])) {
             size_t start = i;
             while (isdigit(src[i])) {
@@ -125,7 +108,6 @@ TokenList lex_file(const char *filename) {
             continue;
         }
 
-        // Unrecognized character
         char err_str[2] = { src[i], '\0' };
         append_token(&list, TOKEN_ERROR, err_str);
         i++;

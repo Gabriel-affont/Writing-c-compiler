@@ -27,7 +27,8 @@ typedef enum {
     TOKEN_LESS_THAN,       // <
     TOKEN_LESS_EQUAL,      // <=
     TOKEN_GREATER_THAN,    // >
-    TOKEN_GREATER_EQUAL,   // >=
+    TOKEN_GREATER_EQUAL, 
+    TOKEN_ASSIGN,  // >=
 
     TOKEN_EOF,
     TOKEN_ERROR
