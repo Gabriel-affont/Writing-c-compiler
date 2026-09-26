@@ -4,54 +4,55 @@
 #include "lexer.h"
 
 typedef enum {
-    AST_INT_LITERAL,
-    AST_RETURN_STATEMENT,
-    AST_FUNCTION_DECLARATION,
-    AST_PROGRAM
-} ASTNodeType;
-
-typedef enum {
     UNARY_NEGATE,
     UNARY_COMPLEMENT,
     UNARY_NOT
 } UnaryOp;
 
 typedef enum {
-    BIN_ADD,
-    BIN_SUB,
-    BIN_MUL,
-    BIN_DIV
+    BINARY_ADD,
+    BINARY_SUBTRACT,
+    BINARY_MULTIPLY,
+    BINARY_DIVIDE,
+    
+    BINARY_EQUAL,
+    BINARY_NOT_EQUAL,
+    BINARY_LESS_THAN,
+    BINARY_LESS_EQUAL,
+    BINARY_GREATER_THAN,
+    BINARY_GREATER_EQUAL,
+    BINARY_LOGICAL_AND,
+    BINARY_LOGICAL_OR
 } BinaryOp;
 
 typedef enum {
     EXP_INT_LITERAL,
     EXP_UNARY,
     EXP_BINARY
+} ExpType;
 
-} EXPType;
+typedef struct ASTExp ASTExp;
 
-
-
-typedef struct ASTExp {
+struct ASTExp {
     ExpType type;
     union {
         int int_val;
         struct {
             UnaryOp op;
-            struct ASTExp *sub_exp;
+            ASTExp *sub_exp;
         } unary;
         struct {
             BinaryOp op;
-            struct ASTExp *left;
-            struct ASTExp *right;
+            ASTExp *left;
+            ASTExp *right;
         } binary;
-        
     };
-} ASTExp;
+};
 
 typedef struct ASTStatement {
     ASTExp *exp;
 } ASTStatement;
+
 typedef struct ASTFunction {
     char *name;
     ASTStatement *statement;
@@ -60,8 +61,10 @@ typedef struct ASTFunction {
 typedef struct ASTProgram {
     ASTFunction *function;
 } ASTProgram;
+
 ASTProgram *parse(TokenList *tokens);
 void free_ast(ASTProgram *program);
 void free_exp(ASTExp *exp);
-void printf_ast(const ASTProgram *program);
+void print_ast(const ASTProgram *program);
+
 #endif
